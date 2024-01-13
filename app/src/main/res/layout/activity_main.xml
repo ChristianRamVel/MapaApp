@@ -14,6 +14,19 @@
         android:layout_height="match_parent"
         map:uiZoomControls="true"
         map:uiRotateGestures="true"
-        map:cameraTilt="30" />
+        map:cameraTilt="30">
+    </fragment>
+
+    <Button
+        android:id="@+id/botonVerListaUbicaciones"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="30dp"
+        android:text="Ver Lista Ubicaciones"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+
+        ></Button>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.widget.Button
 import android.widget.Toast
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -20,6 +21,7 @@ import com.google.android.gms.maps.model.MarkerOptions
 internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
+    private lateinit var botonVerListaUbicaciones: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,15 +35,27 @@ internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
+        //Carga las ubicaciones desde la base de datos
+        val ubicaciones = cargarUbicacionesDesdeBaseDeDatos()
+        //Recorre las ubicaciones y las muestra en el mapa
+        for (ubicacion in ubicaciones) {
+            val ubicacionRecibida = LatLng(ubicacion.latitud, ubicacion.longitud)
+            mMap.addMarker(MarkerOptions()
+                .position(ubicacionRecibida)
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+                .title(ubicacion.descripcion))
+        }
+
         //recogemos las coordenadas que nos llegan del intent
         val latitud = intent.getDoubleExtra("latitud", 0.0)
         val longitud = intent.getDoubleExtra("longitud", 0.0)
+        val descripcion = intent.getStringExtra("descripcion")
         // Se fijan unas coordenadas
         val ubicacionRecibida = LatLng(latitud, longitud)
         //Fija un marcador en la posición y con el texto que se indica.
         mMap.addMarker(MarkerOptions()
             .position(ubicacionRecibida)
-            .title("Marcador en la ubicacion recibida"))
+            .title(descripcion))
         //Mueve la cámara a la latitud que se indica
         mMap.moveCamera(CameraUpdateFactory.newLatLng(ubicacionRecibida))
         //Configuro como satélite
@@ -72,9 +86,58 @@ internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     .snippet("Teléfono: 983989784")
             )
             mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng))
+            guardarUbicacionEnBaseDeDatos(latLng.latitude, latLng.longitude, "Marcador largo")
 
         }
 
+
+
+    }
+
+    //metodo para guardar ubicacion en sqlite
+    private fun guardarUbicacionEnBaseDeDatos(latitud: Double, longitud: Double, descripcion: String) {
+        val dbHelper = LocationDbHelper(this)
+        val db = dbHelper.writableDatabase
+        val values = ContentValues().apply {
+            put(LocationContract.LocationEntry.COLUMN_LATITUD, latitud)
+            put(LocationContract.LocationEntry.COLUMN_LONGITUD, longitud)
+            put(LocationContract.LocationEntry.COLUMN_DESCRIPCION, descripcion)
+        }
+
+        val newRowId = db?.insert(LocationContract.LocationEntry.TABLE_NAME, null, values)
+    }
+
+    //metodo para cargar ubicaciones desde sqlite
+    private fun cargarUbicacionesDesdeBaseDeDatos(): List<Ubicacion> {
+        val ubicaciones = mutableListOf<Ubicacion>()
+        val dbHelper = LocationDbHelper(this)
+        val db = dbHelper.readableDatabase
+        val projection = arrayOf(
+            LocationContract.LocationEntry.COLUMN_LATITUD,
+            LocationContract.LocationEntry.COLUMN_LONGITUD,
+            LocationContract.LocationEntry.COLUMN_DESCRIPCION
+        )
+        val cursor = db.query(
+            LocationContract.LocationEntry.TABLE_NAME,
+            projection,
+            null,
+            null,
+            null,
+            null,
+            null
+        )
+
+        if (cursor != null) {
+            with(cursor) {
+                while (moveToNext()) {
+                    val latitud = getDouble(getColumnIndexOrThrow(LocationContract.LocationEntry.COLUMN_LATITUD))
+                    val longitud = getDouble(getColumnIndexOrThrow(LocationContract.LocationEntry.COLUMN_LONGITUD))
+                    val descripcion = getString(getColumnIndexOrThrow(LocationContract.LocationEntry.COLUMN_DESCRIPCION))
+                    ubicaciones.add(Ubicacion(latitud, longitud, descripcion))
+                }
+            }
+        }
+        return ubicaciones
     }
 
 }
