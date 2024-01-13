@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper
 import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.Toast
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -22,6 +23,7 @@ internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var mMap: GoogleMap
     private lateinit var botonVerListaUbicaciones: Button
+    private lateinit var botonBorrarUbicaciones: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,6 +32,20 @@ internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val mapFragment = supportFragmentManager
             .findFragmentById(R.id.map_container) as SupportMapFragment
         mapFragment.getMapAsync(this)
+
+        botonVerListaUbicaciones = findViewById(R.id.botonVerListaUbicaciones)
+        botonBorrarUbicaciones = findViewById(R.id.botonBorrarUbicaciones)
+        botonVerListaUbicaciones.setOnClickListener {
+            mandarUbicaciones()
+        }
+
+        botonBorrarUbicaciones.setOnClickListener {
+            borrarUbicaciones()
+            //refresca el mapa
+            val intent = intent
+            finish()
+            startActivity(intent)
+        }
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -90,8 +106,6 @@ internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         }
 
-
-
     }
 
     //metodo para guardar ubicacion en sqlite
@@ -140,5 +154,24 @@ internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         return ubicaciones
     }
 
+    //metodo para mandar con un intent las ubicaciones guardadas en sqlite
+    private fun mandarUbicaciones() {
+        val ubicaciones = cargarUbicacionesDesdeBaseDeDatos()
+        val intent = this.packageManager.getLaunchIntentForPackage("com.example.aplicacion1")
+        for (ubicacion in ubicaciones) {
+            intent?.action = "com.example.aplicacion1.MOSTRAR_UBICACION"
+            intent?.putExtra("latitud", ubicacion.latitud)
+            intent?.putExtra("longitud", ubicacion.longitud)
+            intent?.putExtra("descripcion", ubicacion.descripcion)
+            startActivity(intent)
+        }
+    }
+
+    //metodo para borrar ubicaciones de sqlite
+    private fun borrarUbicaciones() {
+        val dbHelper = LocationDbHelper(this)
+        val db = dbHelper.writableDatabase
+        db.delete(LocationContract.LocationEntry.TABLE_NAME, null, null)
+    }
 }
 

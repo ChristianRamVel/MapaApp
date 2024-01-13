@@ -23,9 +23,19 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="30dp"
         android:text="Ver Lista Ubicaciones"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/botonBorrarUbicaciones"
         app:layout_constraintStart_toStartOf="parent"
+
+        ></Button>
+
+    <Button
+        android:id="@+id/botonBorrarUbicaciones"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="30dp"
+        android:text="Borrar Ubicaciones"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
 
         ></Button>
 
