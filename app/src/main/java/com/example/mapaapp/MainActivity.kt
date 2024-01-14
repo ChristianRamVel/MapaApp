@@ -17,6 +17,7 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
 
 internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
@@ -24,6 +25,7 @@ internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var mMap: GoogleMap
     private lateinit var botonVerListaUbicaciones: Button
     private lateinit var botonBorrarUbicaciones: Button
+    private var marcadorSeleccionado: Marker? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,49 +37,34 @@ internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
         botonVerListaUbicaciones = findViewById(R.id.botonVerListaUbicaciones)
         botonBorrarUbicaciones = findViewById(R.id.botonBorrarUbicaciones)
-        botonVerListaUbicaciones.setOnClickListener {
-            mandarUbicaciones()
-        }
 
-        botonBorrarUbicaciones.setOnClickListener {
-            borrarUbicaciones()
-            //refresca el mapa
-            val intent = intent
-            finish()
-            startActivity(intent)
-        }
+
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
+        //Muestra la ubicación recibida en el intent
 
         //Carga las ubicaciones desde la base de datos
         val ubicaciones = cargarUbicacionesDesdeBaseDeDatos()
         //Recorre las ubicaciones y las muestra en el mapa
         for (ubicacion in ubicaciones) {
-            val ubicacionRecibida = LatLng(ubicacion.latitud, ubicacion.longitud)
-            mMap.addMarker(MarkerOptions()
-                .position(ubicacionRecibida)
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
-                .title(ubicacion.descripcion))
+            val ubicacionObtenidaDeBD = LatLng(ubicacion.latitud, ubicacion.longitud)
+            mMap.addMarker(
+                MarkerOptions()
+                    .position(ubicacionObtenidaDeBD)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+                    .title(ubicacion.descripcion)
+            )
         }
+        //la mostramos aqui porque al abrir el mapa se muestran todas las ubicaciones
+        //primero cargamos la base de datos y luego mostramos la ubicacion recibida
+        //y como se guarda en la base de datos al recibirla, la mostrariamos en el mapa igual
+        //pero si borramos la base de datos tambien se borraria y se actualizaria el mapa
+        //sin esta ubicacion tambien.
+        mostrarUbicacionRecibida()
 
-        //recogemos las coordenadas que nos llegan del intent
-        val latitud = intent.getDoubleExtra("latitud", 0.0)
-        val longitud = intent.getDoubleExtra("longitud", 0.0)
-        val descripcion = intent.getStringExtra("descripcion")
-        // Se fijan unas coordenadas
-        val ubicacionRecibida = LatLng(latitud, longitud)
-        //Fija un marcador en la posición y con el texto que se indica.
-        mMap.addMarker(MarkerOptions()
-            .position(ubicacionRecibida)
-            .title(descripcion))
-        //Mueve la cámara a la latitud que se indica
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(ubicacionRecibida))
-        //Configuro como satélite
-        mMap.mapType = GoogleMap.MAP_TYPE_SATELLITE
-
-        //Método que muestra la latitud y la longitud
+        //onclick
         googleMap.setOnMapClickListener { latLng ->
             // Mostrar un Toast con la latitud y la longitud
             Toast.makeText(
@@ -86,30 +73,84 @@ internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                 Toast.LENGTH_LONG
             ).show()
             //Establezco un marcador con el evento
-            googleMap.addMarker((MarkerOptions()
-                .position(latLng)
-                .title("Marcador en destino")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)))
-                .draggable(true))
+            googleMap.addMarker(
+                (MarkerOptions()
+                    .position(latLng)
+                    .title("Marcador en destino")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)))
+                    .draggable(true)
+            )
         }
-
+        //onlongclick
         googleMap.setOnMapLongClickListener { latLng ->
             googleMap.addMarker(
                 MarkerOptions()
                     .position(latLng)
                     .title("Marcador largo")
                     .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW))
-                    .snippet("Teléfono: 983989784")
+                    .snippet("Teléfono")
             )
             mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng))
             guardarUbicacionEnBaseDeDatos(latLng.latitude, latLng.longitude, "Marcador largo")
 
         }
 
+        mMap.setOnMarkerClickListener { marker ->
+            // Desmarca el marcador anteriormente seleccionado
+            marcadorSeleccionado?.setIcon(
+                BitmapDescriptorFactory.defaultMarker(
+                    BitmapDescriptorFactory.HUE_RED
+                )
+            )
+
+            // Marca el nuevo marcador como seleccionado
+            marker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET))
+
+            // Almacena el nuevo marcador seleccionado
+            marcadorSeleccionado = marker
+
+            // Indica que el evento ha sido consumido (para evitar que se ejecute el comportamiento predeterminado)
+            true
+        }
+
+        botonVerListaUbicaciones.setOnClickListener {
+            //si hay un marcador seleccionado, se envia esa ubicacion a la otra app
+            if (marcadorSeleccionado != null) {
+                mandarUbicacion()
+            }
+        }
+        //boton para borrar, se hace aqui porque para poder borrar tambien la ubicacion recibida de
+        //la otra app.
+        botonBorrarUbicaciones.setOnClickListener {
+            borrarUbicaciones()
+            //refresca el mapa
+            val intent = intent
+            finish()
+            startActivity(intent)
+        }
+
+    }
+
+    //funcion para mostrar en el mapa la ubicacion recibida en el intent
+    private fun mostrarUbicacionRecibida() {
+        val intent = intent
+        val latitud = intent.getDoubleExtra("latitud", 0.0)
+        val longitud = intent.getDoubleExtra("longitud", 0.0)
+        val descripcion = intent.getStringExtra("descripcion")
+        if (latitud != 0.0 && longitud != 0.0 && descripcion != null) {
+            val ubicacionRecibida = LatLng(latitud, longitud)
+            mMap.moveCamera(CameraUpdateFactory.newLatLng(ubicacionRecibida))
+
+            guardarUbicacionEnBaseDeDatos(latitud, longitud, descripcion)
+        }
     }
 
     //metodo para guardar ubicacion en sqlite
-    private fun guardarUbicacionEnBaseDeDatos(latitud: Double, longitud: Double, descripcion: String) {
+    private fun guardarUbicacionEnBaseDeDatos(
+        latitud: Double,
+        longitud: Double,
+        descripcion: String
+    ) {
         val dbHelper = LocationDbHelper(this)
         val db = dbHelper.writableDatabase
         val values = ContentValues().apply {
@@ -144,9 +185,12 @@ internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         if (cursor != null) {
             with(cursor) {
                 while (moveToNext()) {
-                    val latitud = getDouble(getColumnIndexOrThrow(LocationContract.LocationEntry.COLUMN_LATITUD))
-                    val longitud = getDouble(getColumnIndexOrThrow(LocationContract.LocationEntry.COLUMN_LONGITUD))
-                    val descripcion = getString(getColumnIndexOrThrow(LocationContract.LocationEntry.COLUMN_DESCRIPCION))
+                    val latitud =
+                        getDouble(getColumnIndexOrThrow(LocationContract.LocationEntry.COLUMN_LATITUD))
+                    val longitud =
+                        getDouble(getColumnIndexOrThrow(LocationContract.LocationEntry.COLUMN_LONGITUD))
+                    val descripcion =
+                        getString(getColumnIndexOrThrow(LocationContract.LocationEntry.COLUMN_DESCRIPCION))
                     ubicaciones.add(Ubicacion(latitud, longitud, descripcion))
                 }
             }
@@ -155,16 +199,15 @@ internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     //metodo para mandar con un intent las ubicaciones guardadas en sqlite
-    private fun mandarUbicaciones() {
-        val ubicaciones = cargarUbicacionesDesdeBaseDeDatos()
+    private fun mandarUbicacion() {
+
         val intent = this.packageManager.getLaunchIntentForPackage("com.example.aplicacion1")
-        for (ubicacion in ubicaciones) {
-            intent?.action = "com.example.aplicacion1.MOSTRAR_UBICACION"
-            intent?.putExtra("latitud", ubicacion.latitud)
-            intent?.putExtra("longitud", ubicacion.longitud)
-            intent?.putExtra("descripcion", ubicacion.descripcion)
-            startActivity(intent)
-        }
+        intent?.action = "com.example.aplicacion1.MOSTRAR_UBICACION"
+        intent?.putExtra("latitud", marcadorSeleccionado?.position?.latitude)
+        intent?.putExtra("longitud", marcadorSeleccionado?.position?.longitude)
+        intent?.putExtra("descripcion", marcadorSeleccionado?.title)
+        startActivity(intent)
+
     }
 
     //metodo para borrar ubicaciones de sqlite
@@ -173,5 +216,6 @@ internal class MainActivity : AppCompatActivity(), OnMapReadyCallback {
         val db = dbHelper.writableDatabase
         db.delete(LocationContract.LocationEntry.TABLE_NAME, null, null)
     }
+
 }
 

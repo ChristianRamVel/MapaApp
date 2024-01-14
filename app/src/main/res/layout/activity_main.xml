@@ -22,7 +22,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="30dp"
-        android:text="Ver Lista Ubicaciones"
+        android:text="Mandar Ubicacion a la lista"
         app:layout_constraintBottom_toTopOf="@id/botonBorrarUbicaciones"
         app:layout_constraintStart_toStartOf="parent"
 
